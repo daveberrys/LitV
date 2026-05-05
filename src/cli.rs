@@ -33,6 +33,13 @@ pub enum Command {
         #[arg(num_args = 1..)]
         name: Option<Vec<String>>,
     },
+
+    /// Removes a dependency from the project and cache.
+    Remove {
+        /// Name of the dependency to remove
+        #[arg(num_args = 1..)]
+        name: Option<Vec<String>>,
+    }
 }
 
 impl Args {
