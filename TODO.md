@@ -1,0 +1,20 @@
+- [ ] `add` cli tool.
+    - [ ] Make a cache system so the user wouldn't have to keep downloading the package from PyPI.
+        - [ ] If possible, use symlink to reduce storage usage.
+    - [ ] When a dependency is added, place it on `pyproject.toml` at `dependencies = []`.
+- [ ] `delete` cli tool.
+    - [ ] Removes a dependency in `pyproject.toml` and in the virtual environment too.
+- [ ] `run` cli tool.
+    - [ ] Check if the user has the exact same dependencies. If they don't, sync them.
+    - [x] If the user doen't have a virtual environment, automatically create one, and then run the app.
+- [ ] `init` cli tool.
+    - [x] Initialize the file structure:
+        - [x] README.md
+        - [x] .gitignore
+        - [x] src/main.py
+        - [x] README.md
+        - [x] pyproject.toml
+    - [ ] Initialize a git project/repo
+- [ ] global.
+    - [x] Instead of activiating the virtual environment, just automatically run from `venv\\Scripts\\python.exe` from windows, and `venv/bin/python` in unix.
+    - [ ] Same thing as above, but for `pip`.
