@@ -29,9 +29,9 @@ pub enum Command {
 
     /// Adds a new dependency to the project and cache.
     Add {
-        /// Name of the dependency to add
-        #[arg(required = true, num_args = 1..)]
-        name: Vec<String>,
+        /// Name of the dependency to add (omit to install all from pyproject.toml)
+        #[arg(num_args = 1..)]
+        name: Option<Vec<String>>,
     },
 }
 

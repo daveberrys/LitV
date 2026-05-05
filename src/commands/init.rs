@@ -5,26 +5,24 @@ use colored::Colorize;
 use std::error::Error;
 
 const CONTENT_README: &str = r#"# A LitV Project.
-Check out LitV in our github.
-"#;
+Check out LitV in our github."#;
 
 const CONTENT_GITIGNORE: &str = r#"*venv*
 *.pyc
-__pycache__
-"#;
+__pycache__"#;
 
 const CONTENT_PYPROJECT: &str = r#"[litv]
 name = "{}"
 version = "0.1.0"
 description = "An initialized LitV project"
 python_version = "latest"
-is_litv_project = true
-dependencies = []
-"#;
+dependencies = []"#;
 
 const CONTENT_MAIN: &str = r#"def main():
     print("Hello from LitV!")
-"#;
+
+if __name__ == "__main__":
+    main()"#;
 
 pub fn run(path: &str) -> Result<(), Box<dyn Error>> {
     let base_path = Path::new(path);

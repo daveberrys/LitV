@@ -1,9 +1,9 @@
-- [ ] `add` cli tool.
-    - [ ] Make a cache system so the user wouldn't have to keep downloading the package from PyPI.
-        - [x] Creating the cache
-        - [ ] If possible, use symlink to reduce storage usage.
-        - [ ] Lock file.
-    - [ ] When a dependency is added, place it on `pyproject.toml` at `dependencies = []`.
+- [x] `add` cli tool.
+    - [~] Make a cache system so the user wouldn't have to keep downloading the package from PyPI.
+        - [~] Creating the cache
+        - [~] If possible, use symlink to reduce storage usage.
+        - [~] Lock file.
+    - [x] When a dependency is added, place it on `pyproject.toml` at `dependencies = []`.
 - [ ] `delete` cli tool.
     - [ ] Removes a dependency in `pyproject.toml` and in the virtual environment too.
 - [ ] `run` cli tool.

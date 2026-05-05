@@ -25,10 +25,9 @@ fn main() {
         }
 
         Some(Command::Add { name }) => {
-            for package in name {
-                if let Err(e) = add_run(&package) {
-                    eprintln!("Add failed: {}", e.to_string().red());
-                }
+            let packages = name.unwrap_or_default();
+            if let Err(e) = add_run(&packages) {
+                eprintln!("Add failed: {}", e.to_string().red());
             }
         }
 
