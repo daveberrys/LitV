@@ -21,8 +21,11 @@ jobs:
             os-name: Windows
             target: x86_64-pc-windows-msvc
           - os: macos-latest
-            os-name: macOS
+            os-name: macOS-Intel
             target: x86_64-apple-darwin
+          - os: macos-latest
+            os-name: macOS-Arm64
+            target: aarch64-apple-darwin
 
     steps:
       - uses: actions/checkout@v4
