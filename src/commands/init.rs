@@ -29,8 +29,8 @@ pub fn run(path: &str) -> Result<(), Box<dyn Error>> {
 
     if path != "." && path != "" {
         fs::create_dir(base_path)?;
-        fs::create_dir(base_path.join("src"))?;
     }
+    fs::create_dir(base_path.join("src"))?;
 
     let project_name = base_path
         .file_name()
