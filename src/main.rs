@@ -4,6 +4,8 @@ mod commands;
 use cli::{Args, Command};
 use commands::init::run as init_run;
 use commands::run::run as run_run;
+use commands::add::run as add_run;
+
 use colored::Colorize;
 
 fn main() {
@@ -21,7 +23,15 @@ fn main() {
                 eprintln!("Run failed: {}", e.to_string().red());
             }
         }
-        
+
+        Some(Command::Add { name }) => {
+            for package in name {
+                if let Err(e) = add_run(&package) {
+                    eprintln!("Add failed: {}", e.to_string().red());
+                }
+            }
+        }
+
         None => {
             println!("Verbose: {}", args.verbose);
         }

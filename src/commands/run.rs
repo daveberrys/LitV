@@ -4,8 +4,6 @@ use std::error::Error;
 use colored::Colorize;
 
 pub fn run(_path: &str) -> Result<(), Box<dyn Error>> {
-    let is_windows = std::env::consts::OS == "windows";
-
     if Path::new(".venv").is_dir() {
         start_app()?;
     } else {

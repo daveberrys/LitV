@@ -2,6 +2,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 use colored::Colorize;
+use std::error::Error;
 
 const CONTENT_README: &str = r#"# A LitV Project.
 Check out LitV in our github.
@@ -25,7 +26,7 @@ const CONTENT_MAIN: &str = r#"def main():
     print("Hello from LitV!")
 "#;
 
-pub fn run(path: &str) -> Result<(), io::Error> {
+pub fn run(path: &str) -> Result<(), Box<dyn Error>> {
     let base_path = Path::new(path);
 
     if path != "." && path != "" {
