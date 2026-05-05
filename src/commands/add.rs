@@ -33,6 +33,10 @@ struct PyProjectToml {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct Project {
+    name: Option<String>,
+    version: Option<String>,
+    description: Option<String>,
+    python_version: Option<String>,
     dependencies: Option<Vec<String>>,
 }
 
@@ -103,12 +107,12 @@ fn write_pyproject(path: &PathBuf, dependencies: &[String]) -> Result<(), Box<dy
         if let Some(ref mut project) = pyproject.litv {
             project.dependencies = Some(dependencies.to_vec());
         } else {
-            pyproject.litv = Some(Project { dependencies: Some(dependencies.to_vec()) });
+            pyproject.litv = Some(Project { name: None, version: None, description: None, python_version: None, dependencies: Some(dependencies.to_vec()) });
         }
         toml::to_string_pretty(&pyproject).unwrap_or(existing)
     } else {
         let pyproject = PyProjectToml {
-            litv: Some(Project { dependencies: Some(dependencies.to_vec()) }),
+            litv: Some(Project { name: None, version: None, description: None, python_version: None, dependencies: Some(dependencies.to_vec()) }),
         };
         toml::to_string_pretty(&pyproject)?
     };

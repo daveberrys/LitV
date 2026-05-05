@@ -11,6 +11,10 @@ struct PyProjectToml {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct Project {
+    name: Option<String>,
+    version: Option<String>,
+    description: Option<String>,
+    python_version: Option<String>,
     dependencies: Option<Vec<String>>,
 }
 
