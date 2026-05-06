@@ -2,10 +2,10 @@ use std::env;
 use std::error::Error;
 use std::path::PathBuf;
 use std::fs;
-use std::process::Command;
 use reqwest::blocking;
 use colored::Colorize;
 use zip::ZipArchive;
+use super::venv;
 
 #[derive(serde::Deserialize)]
 struct PyPiResponse {
@@ -96,11 +96,8 @@ pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn create_venv(venv_path: &PathBuf) -> Result<(), Box<dyn Error>> {
-    Command::new("python")
-        .args(["-m", "venv", venv_path.to_str().unwrap()])
-        .output()?;
-    println!("{} Created virtual environment", "*".green().bold());
+fn create_venv(_venv_path: &PathBuf) -> Result<(), Box<dyn Error>> {
+    venv::run("")?;
     Ok(())
 }
 
