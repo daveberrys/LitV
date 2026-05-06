@@ -52,6 +52,20 @@ pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
     let site_packages = get_site_packages(&venv_dir)?;
 
     if packages.is_empty() {
+        let deps = read_dependencies(&pyproject_path)?;
+        if deps.is_empty() {
+            println!("{} {}",
+                "No dependencies found in pyproject.toml. Add packages with:".white(),
+                "litv add <package>".bold().green()
+            );
+            return Ok(());
+        }
+        println!("{} {}",
+            "Installing dependencies from".bright_black(),
+            "pyproject.toml...".bright_black().bold()
+        );
+        install_from_pyproject(&pyproject_path, &site_packages)?;
+        println!("{}", "Installation complete!".green().bold());
         return Ok(());
     }
 
@@ -63,16 +77,22 @@ pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
         
         for dep in package_deps {
             let dep_name = extract_package_name(&dep);
-            if !dep_name.is_empty() && dep_name != "python" && !dep.contains('[') {
-                let dep_version = get_package_version(&dep_name).unwrap_or_else(|_| "latest".to_string());
+            if dep_name.is_empty() || dep_name == "python" || dep_name.contains('-') || dep.contains('[') {
+                continue;
+            }
+            if let Ok(dep_version) = get_package_version(&dep_name) {
                 add_dependency(&mut dependencies, &dep_name, &dep_version);
             }
         }
     }
 
     write_pyproject(&pyproject_path, &dependencies)?;
-    install_from_pyproject(&pyproject_path, &site_packages)?;
-
+    println!("{} {} {}",
+        "To install the packages, just run".white(),
+        "litv add".bold().green(),
+        "to install them!".white()
+    );
+    
     Ok(())
 }
 
@@ -80,7 +100,7 @@ fn create_venv(venv_path: &PathBuf) -> Result<(), Box<dyn Error>> {
     Command::new("python")
         .args(["-m", "venv", venv_path.to_str().unwrap()])
         .output()?;
-    println!("{} Created virtual environment", "*".green());
+    println!("{} Created virtual environment", "*".green().bold());
     Ok(())
 }
 
@@ -101,6 +121,7 @@ fn read_dependencies(pyproject_path: &PathBuf) -> Result<Vec<String>, Box<dyn Er
 }
 
 fn write_pyproject(path: &PathBuf, dependencies: &[String]) -> Result<(), Box<dyn Error>> {
+    println!("{} {}", "Writing packages required dependencies to:".bright_black(), "pyproject.toml".bold().bright_black());
     let content = if path.exists() {
         let existing = fs::read_to_string(path)?;
         let mut pyproject: PyProjectToml = toml::from_str(&existing).unwrap_or(PyProjectToml { litv: None });
@@ -122,10 +143,9 @@ fn write_pyproject(path: &PathBuf, dependencies: &[String]) -> Result<(), Box<dy
 
 fn install_from_pyproject(pyproject_path: &PathBuf, site_packages: &PathBuf) -> Result<(), Box<dyn Error>> {
     if !pyproject_path.exists() {
-        println!("No pyproject.toml found. Add packages with: litv add <package>");
+        println!("{} {}", "No pyproject.toml found. Add packages with:".red(), "litv add <package>".red().bold());
         return Ok(());
     }
-    println!("Installing all dependencies from pyproject.toml...");
     let deps = read_dependencies(pyproject_path)?;
     for dep in deps {
         let name = dep.split("==").next().unwrap_or(&dep);
@@ -144,7 +164,11 @@ fn install_package_and_get_deps(site_packages: &PathBuf, package: &str) -> Resul
     fs::create_dir_all(&temp_dir)?;
 
     let temp_wheel = temp_dir.join("package.whl");
-    let data = blocking::get(&download_url)?.bytes()?;
+    let response = blocking::get(&download_url)?;
+    if !response.status().is_success() {
+        return Err(format!("Download failed: HTTP {}", response.status()).into());
+    }
+    let data = response.bytes()?;
     fs::write(&temp_wheel, data)?;
 
     extract_wheel(&temp_wheel, site_packages)?;
@@ -173,23 +197,23 @@ fn add_dependency(dependencies: &mut Vec<String>, package: &str, version: &str) 
 }
 
 fn extract_package_name(dep: &str) -> String {
-    let chars: Vec<char> = dep.chars().collect();
-    let mut end = chars.len();
-    for (i, c) in chars.iter().enumerate() {
-        if c.is_ascii_punctuation() {
-            end = i;
-            break;
-        }
-    }
-    dep[..end].trim().to_string()
+    let base = dep.split(';').next().unwrap_or(dep);
+    let name_end = base.find(|c: char| matches!(c, '(' | '[' | '>' | '<' | '=' | '~')).unwrap_or(base.len());
+    base[..name_end].trim().to_string()
 }
 
 fn get_package_info(package: &str) -> Result<(String, String, Vec<String>), Box<dyn Error>> {
     let url = format!("https://pypi.org/pypi/{}/json", package);
     let response = blocking::get(&url)?.json::<PyPiResponse>()?;
+    
+    let wheel_url = response.urls.iter()
+        .find(|u| u.url.ends_with(".whl"))
+        .map(|u| u.url.clone())
+        .ok_or_else(|| format!("No wheel file found for {}", package))?;
+    
     let deps = response.info.requires_dist.unwrap_or_default();
     let dep_names: Vec<String> = deps.iter().map(|d| d.split(';').next().unwrap_or(d).trim().to_string()).collect();
-    Ok((response.urls[0].url.clone(), response.info.version.clone(), dep_names))
+    Ok((wheel_url, response.info.version.clone(), dep_names))
 }
 
 fn get_package_version(package: &str) -> Result<String, Box<dyn Error>> {
