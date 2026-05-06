@@ -39,7 +39,14 @@ pub enum Command {
         /// Name of the dependency to remove
         #[arg(num_args = 1..)]
         name: Option<Vec<String>>,
-    }
+    },
+
+    /// Creates a virtual environment for the project.
+    Venv {
+        /// Version of Python to use for the virtual environment
+        #[arg(default_value = "-3.14")]
+        version: String,
+    },
 }
 
 impl Args {

@@ -24,7 +24,7 @@ pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
     let venv_dir = current_dir.join(".venv");
 
     if packages.is_empty() {
-        println!("Please specify packages to remove");
+        println!("{}", "Please specify packages to remove".red());
         return Ok(());
     }
 
