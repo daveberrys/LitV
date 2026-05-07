@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(name = "litv")]
-#[command(about = "A CLI tool", long_about = None)]
+#[command(about = "Your next helper tool for your next python project.", long_about = None)]
 pub struct Args {
     #[arg(short, long)]
     pub verbose: bool,
