@@ -5,6 +5,8 @@ use std::fs;
 use reqwest::blocking;
 use colored::Colorize;
 use zip::ZipArchive;
+use flate2::read::GzDecoder;
+use tar::Archive as TarArchive;
 use super::venv;
 
 #[derive(serde::Deserialize)]
@@ -170,15 +172,20 @@ fn install_package_and_get_deps(site_packages: &PathBuf, package: &str) -> Resul
     }
     fs::create_dir_all(&temp_dir)?;
 
-    let temp_wheel = temp_dir.join("package.whl");
+    let is_wheel = download_url.ends_with(".whl");
+    let temp_file = temp_dir.join(if is_wheel { "package.whl" } else { "package.tar.gz" });
     let response = blocking::get(&download_url)?;
     if !response.status().is_success() {
         return Err(format!("Download failed: HTTP {}", response.status()).into());
     }
     let data = response.bytes()?;
-    fs::write(&temp_wheel, data)?;
+    fs::write(&temp_file, data)?;
 
-    extract_wheel(&temp_wheel, site_packages)?;
+    if is_wheel {
+        extract_wheel(&temp_file, site_packages)?;
+    } else {
+        extract_tarball(&temp_file, site_packages)?;
+    }
 
     let _ = fs::remove_dir_all(&temp_dir);
 
@@ -267,14 +274,15 @@ fn get_package_info(package: &str) -> Result<(String, String, Vec<String>), Box<
     let url = format!("https://pypi.org/pypi/{}/json", package);
     let response = blocking::get(&url)?.json::<PyPiResponse>()?;
     
-    let wheel_url = response.urls.iter()
+    let download_url = response.urls.iter()
         .find(|u| u.url.ends_with(".whl"))
+        .or_else(|| response.urls.iter().find(|u| u.url.ends_with(".tar.gz")))
         .map(|u| u.url.clone())
-        .ok_or_else(|| format!("No wheel file found for {}", package))?;
+        .ok_or_else(|| format!("No wheel or tar.gz file found for {}", package))?;
     
     let deps = response.info.requires_dist.unwrap_or_default();
     let dep_names: Vec<String> = deps.iter().map(|d| d.split(';').next().unwrap_or(d).trim().to_string()).collect();
-    Ok((wheel_url, response.info.version.clone(), dep_names))
+    Ok((download_url, response.info.version.clone(), dep_names))
 }
 
 fn get_package_version(package: &str) -> Result<String, Box<dyn Error>> {
@@ -299,5 +307,48 @@ fn extract_wheel(wheel_path: &PathBuf, dest_dir: &PathBuf) -> Result<(), Box<dyn
             std::io::copy(&mut f, &mut outfile)?;
         }
     }
+    Ok(())
+}
+
+fn extract_tarball(tarball_path: &PathBuf, dest_dir: &PathBuf) -> Result<(), Box<dyn Error>> {
+    let file = fs::File::open(tarball_path)?;
+    let decoder = GzDecoder::new(file);
+    let mut archive = TarArchive::new(decoder);
+    
+    let mut top_dir: Option<PathBuf> = None;
+    
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let path = entry.path()?.into_owned();
+        
+        if top_dir.is_none() {
+            if let Some(first) = path.components().next() {
+                let td = PathBuf::from(first.as_os_str());
+                top_dir = Some(td.clone());
+                if !dest_dir.join(&td).exists() {
+                    let _ = fs::create_dir_all(dest_dir.join(&td));
+                }
+            }
+        }
+        
+        let relative = if let Some(ref td) = top_dir {
+            path.strip_prefix(td).unwrap_or(&path).to_path_buf()
+        } else {
+            path.clone()
+        };
+        
+        let outpath = dest_dir.join(&relative);
+        
+        if entry.header().entry_type().is_dir() {
+            let _ = fs::create_dir_all(&outpath);
+            continue;
+        }
+        
+        if let Some(p) = outpath.parent() {
+            let _ = fs::create_dir_all(p);
+        }
+        entry.unpack(&outpath)?;
+    }
+    
     Ok(())
 }
