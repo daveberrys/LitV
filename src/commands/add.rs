@@ -40,7 +40,7 @@ struct Project {
     dependencies: Option<Vec<String>>,
 }
 
-pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
+pub fn run(packages: &[String], install: bool) -> Result<(), Box<dyn Error>> {
     let current_dir = env::current_dir()?;
     let pyproject_path = current_dir.join("pyproject.toml");
     let venv_dir = current_dir.join(".venv");
@@ -73,6 +73,11 @@ pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
 
     for package in packages {
         let (version, package_deps) = install_package_and_get_deps(&site_packages, package)?;
+        
+        if install {
+            install_extras_and_deps(&site_packages, package, &package_deps, &mut dependencies)?;
+        }
+
         add_dependency(&mut dependencies, package, &version);
         
         for dep in package_deps {
@@ -87,11 +92,16 @@ pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
     }
 
     write_pyproject(&pyproject_path, &dependencies)?;
-    println!("{} {} {}",
-        "To install the packages, just run".white(),
-        "litv add".bold().green(),
-        "to install them!".white()
-    );
+
+    if install {
+        println!("{}", "Installation complete!".green().bold());
+    } else {
+        println!("{} {} {}",
+            "To install the packages, just run".white(),
+            "litv add".bold().green(),
+            "to install them!".white()
+        );
+    }
     
     Ok(())
 }
@@ -197,6 +207,60 @@ fn extract_package_name(dep: &str) -> String {
     let base = dep.split(';').next().unwrap_or(dep);
     let name_end = base.find(|c: char| matches!(c, '(' | '[' | '>' | '<' | '=' | '~')).unwrap_or(base.len());
     base[..name_end].trim().to_string()
+}
+
+fn install_extras_and_deps(
+    site_packages: &PathBuf,
+    package: &str,
+    _package_deps: &[String],
+    dependencies: &mut Vec<String>,
+) -> Result<(), Box<dyn Error>> {
+    let extras = extract_extras(package);
+    
+    if extras.is_empty() {
+        return Ok(());
+    }
+
+    let all_deps = get_package_all_deps(package)?;
+
+    for extra in extras {
+        for dep in &all_deps {
+            if dep.contains(&format!("extra == \"{}\"", extra)) {
+                let dep_name = extract_package_name(dep);
+                if dep_name.is_empty() || dep_name == "python" {
+                    continue;
+                }
+                if let Ok(dep_version) = get_package_version(&dep_name) {
+                    add_dependency(dependencies, &dep_name, &dep_version);
+                    install_package(site_packages, &dep_name)?;
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn extract_extras(package: &str) -> Vec<String> {
+    if let Some(start) = package.find('[') {
+        if let Some(end) = package.find(']') {
+            let extras_str = &package[start + 1..end];
+            return extras_str
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+        }
+    }
+    vec![]
+}
+
+fn get_package_all_deps(package: &str) -> Result<Vec<String>, Box<dyn Error>> {
+    let name = package.split('[').next().unwrap_or(package);
+    let url = format!("https://pypi.org/pypi/{}/json", name);
+    let response = blocking::get(&url)?.json::<PyPiResponse>()?;
+    let deps = response.info.requires_dist.unwrap_or_default();
+    Ok(deps)
 }
 
 fn get_package_info(package: &str) -> Result<(String, String, Vec<String>), Box<dyn Error>> {

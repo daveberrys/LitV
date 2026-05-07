@@ -26,9 +26,9 @@ fn main() {
             }
         }
 
-        Some(Command::Add { name }) => {
+        Some(Command::Add { name, install }) => {
             let packages = name.unwrap_or_default();
-            if let Err(e) = add_run(&packages) {
+            if let Err(e) = add_run(&packages, install) {
                 eprintln!("Add failed: {}", e.to_string().red());
             }
         }

@@ -32,6 +32,10 @@ pub enum Command {
         /// Name of the dependency to add (omit to install all from pyproject.toml)
         #[arg(num_args = 1..)]
         name: Option<Vec<String>>,
+
+        /// Install the package immediately
+        #[arg(short, long)]
+        install: bool,
     },
 
     /// Removes a dependency from the project and cache.
