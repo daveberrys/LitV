@@ -15,7 +15,6 @@ const CONTENT_PYPROJECT: &str = r#"[litv]
 name = "{}"
 version = "0.1.0"
 description = "An initialized LitV project"
-python_version = "latest"
 dependencies = []"#;
 
 const CONTENT_MAIN: &str = r#"def main():

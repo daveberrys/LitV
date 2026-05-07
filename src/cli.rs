@@ -52,7 +52,7 @@ pub enum Command {
     /// Creates a virtual environment for the project.
     Venv {
         /// Version of Python to use for the virtual environment
-        #[arg(default_value = "-3.14")]
+        #[arg(default_value = "-3.14", allow_hyphen_values = true)]
         version: String,
     },
 }

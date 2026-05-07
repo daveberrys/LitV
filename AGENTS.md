@@ -14,6 +14,7 @@ cargo run -- run                   # Run src/main.py using venv Python
 cargo run -- run <script>          # Run specified script using venv Python
 cargo run -- run -- <argument>     # Run python program and passthrough arguments
 cargo run -- venv                  # Create virtual environment
+cargo run -- venv <version>        # Create virtual environment with specific Python version
 ```
 
 ## Key Files
@@ -52,12 +53,13 @@ cargo run -- venv                  # Create virtual environment
 - Falls back to copying if junctions fail
 - Platform path: `.venv/Lib/site-packages` (Windows), `.venv/lib/python3.x/site-packages` (Unix)
 
-### pyproject.toml format
+### pyproject.toml initialize format
 ```toml
 [litv]
-name = "project-name"
+name = "{}"
 version = "0.1.0"
-dependencies = ["flask==3.1.3", "requests==2.33.1"]
+description = "An initialized LitV project"
+dependencies = []"
 ```
 
 ### Add workflow (without -i)
@@ -100,9 +102,9 @@ dependencies = ["flask==3.1.3", "requests==2.33.1"]
 ## Build & Run
 
 ```bash
-cargo build              # Debug build
+cargo build             # Debug build
 cargo run add flask     # Add flask to pyproject.toml (no install)
-cargo run add flask -i   # Add and install flask immediately
+cargo run add flask -i  # Add and install flask immediately
 cargo run add           # Install all deps from pyproject.toml
-cargo run remove flask # Remove flask from project and venv
+cargo run remove flask  # Remove flask from project and venv
 ```
