@@ -20,8 +20,8 @@ fn main() {
             }
         }
 
-        Some(Command::Run { path }) => {
-            if let Err(e) = run_run(&path) {
+        Some(Command::Run { path, args }) => {
+            if let Err(e) = run_run(&path, args) {
                 eprintln!("Run failed: {}", e.to_string().red());
             }
         }

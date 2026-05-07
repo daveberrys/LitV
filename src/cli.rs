@@ -23,8 +23,12 @@ pub enum Command {
     /// Run the LitV application
     Run {
         /// Path to the project to run
-        #[arg(default_value = "src/main.py")]
+        #[arg(default_value = "src/main.py", allow_hyphen_values = true, trailing_var_arg = true)]
         path: String,
+
+        /// Arguments to pass to the Python script
+        #[arg(last = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
 
     /// Adds a new dependency to the project and cache.
