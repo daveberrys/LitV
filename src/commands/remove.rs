@@ -7,7 +7,7 @@ use colored::Colorize;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct PyProjectToml {
-    litv: Option<Project>,
+    project: Option<Project>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -54,8 +54,8 @@ fn read_dependencies(pyproject_path: &PathBuf) -> Result<Vec<String>, Box<dyn Er
         return Ok(vec![]);
     }
     let content = fs::read_to_string(pyproject_path)?;
-    let pyproject: PyProjectToml = toml::from_str(&content).unwrap_or(PyProjectToml { litv: None });
-    Ok(pyproject.litv.and_then(|p| p.dependencies).unwrap_or_default())
+    let pyproject: PyProjectToml = toml::from_str(&content).unwrap_or(PyProjectToml { project: None });
+    Ok(pyproject.project.and_then(|p| p.dependencies).unwrap_or_default())
 }
 
 fn remove_from_pyproject(package: &str, dependencies: &mut Vec<String>, path: &PathBuf) -> Result<(), Box<dyn Error>> {
@@ -68,9 +68,9 @@ fn remove_from_pyproject(package: &str, dependencies: &mut Vec<String>, path: &P
 
     if path.exists() {
         let existing = fs::read_to_string(path)?;
-        let mut pyproject: PyProjectToml = toml::from_str(&existing).unwrap_or(PyProjectToml { litv: None });
+        let mut pyproject: PyProjectToml = toml::from_str(&existing).unwrap_or(PyProjectToml { project: None });
         
-        if let Some(ref mut project) = pyproject.litv {
+        if let Some(ref mut project) = pyproject.project {
             project.dependencies = Some(dependencies.to_vec());
         }
         

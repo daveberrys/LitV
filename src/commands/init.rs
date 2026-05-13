@@ -11,7 +11,7 @@ const CONTENT_GITIGNORE: &str = r#"*venv*
 *.pyc
 __pycache__"#;
 
-const CONTENT_PYPROJECT: &str = r#"[litv]
+const CONTENT_PYPROJECT: &str = r#"[project]
 name = "{}"
 version = "0.1.0"
 description = "An initialized LitV project"

@@ -31,7 +31,7 @@ struct PackageUrl {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct PyProjectToml {
-    litv: Option<Project>,
+    project: Option<Project>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -147,24 +147,24 @@ fn read_dependencies(pyproject_path: &PathBuf) -> Result<Vec<String>, Box<dyn Er
         return Ok(vec![]);
     }
     let content = fs::read_to_string(pyproject_path)?;
-    let pyproject: PyProjectToml = toml::from_str(&content).unwrap_or(PyProjectToml { litv: None });
-    Ok(pyproject.litv.and_then(|p| p.dependencies).unwrap_or_default())
+    let pyproject: PyProjectToml = toml::from_str(&content).unwrap_or(PyProjectToml { project: None });
+    Ok(pyproject.project.and_then(|p| p.dependencies).unwrap_or_default())
 }
 
 fn write_pyproject(path: &PathBuf, dependencies: &[String]) -> Result<(), Box<dyn Error>> {
     println!("{} {}", "Writing packages required dependencies to:".bright_black(), "pyproject.toml".bold().bright_black());
     let content = if path.exists() {
         let existing = fs::read_to_string(path)?;
-        let mut pyproject: PyProjectToml = toml::from_str(&existing).unwrap_or(PyProjectToml { litv: None });
-        if let Some(ref mut project) = pyproject.litv {
+        let mut pyproject: PyProjectToml = toml::from_str(&existing).unwrap_or(PyProjectToml { project: None });
+        if let Some(ref mut project) = pyproject.project {
             project.dependencies = Some(dependencies.to_vec());
         } else {
-            pyproject.litv = Some(Project { name: None, version: None, description: None, python_version: None, dependencies: Some(dependencies.to_vec()) });
+            pyproject.project = Some(Project { name: None, version: None, description: None, python_version: None, dependencies: Some(dependencies.to_vec()) });
         }
         toml::to_string_pretty(&pyproject).unwrap_or(existing)
     } else {
         let pyproject = PyProjectToml {
-            litv: Some(Project { name: None, version: None, description: None, python_version: None, dependencies: Some(dependencies.to_vec()) }),
+            project: Some(Project { name: None, version: None, description: None, python_version: None, dependencies: Some(dependencies.to_vec()) }),
         };
         toml::to_string_pretty(&pyproject)?
     };
