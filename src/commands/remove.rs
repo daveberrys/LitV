@@ -2,6 +2,7 @@ use std::env;
 use std::error::Error;
 use std::path::PathBuf;
 use std::fs;
+use std::process::Command;
 use colored::Colorize;
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -18,7 +19,7 @@ struct Project {
     dependencies: Option<Vec<String>>,
 }
 
-pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
+pub fn run(packages: &[String], backup: bool) -> Result<(), Box<dyn Error>> {
     let current_dir = env::current_dir()?;
     let pyproject_path = current_dir.join("pyproject.toml");
     let venv_dir = current_dir.join(".venv");
@@ -28,6 +29,10 @@ pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
+    if backup {
+        pip_remove(&packages)?;
+    }
+    
     let mut dependencies = read_dependencies(&pyproject_path)?;
 
     for package in packages {
@@ -100,4 +105,15 @@ fn get_site_packages(venv_dir: &PathBuf) -> Result<PathBuf, Box<dyn Error>> {
     { Ok(venv_dir.join("Lib").join("site-packages")) }
     #[cfg(not(target_os = "windows"))]
     { Ok(venv_dir.join("lib").join("python3.12").join("site-packages")) }
+}
+
+fn pip_remove(packages: &[String]) -> Result<(), Box<dyn Error>> {
+    for package in packages {
+        Command::new("pip")
+            .arg("uninstall")
+            .arg("-y")
+            .arg(package)
+            .status()?;
+    }
+    Ok(())
 }

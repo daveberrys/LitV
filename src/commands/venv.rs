@@ -125,10 +125,10 @@ fn fallback_copy(target: &std::path::Path, source: &std::path::Path) -> Result<(
 }
 
 fn check_os() -> Result<(), Box<dyn Error>> {
-    #[cfg(not(target_os = "windows"))]
-    {
+    #[cfg(not(target_os = "windows"))] {
         println!("{}", "Sorry to say this, but your current os (which may be unix) is not supported!".red());
         println!("{}", "As of right now, only Windows is supported.".red());
+        println!("{}", "If you wish to use a virtual environment, run `python -m venv venv`.".red());
     }
     Ok(())
 }

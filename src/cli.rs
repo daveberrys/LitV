@@ -40,6 +40,10 @@ pub enum Command {
         /// Install the package immediately
         #[arg(short, long)]
         install: bool,
+
+        /// Use pip as a backup if litv fails.
+        #[arg(short, long)]
+        backup: bool,
     },
 
     /// Removes a dependency from the project and cache.
@@ -47,6 +51,10 @@ pub enum Command {
         /// Name of the dependency to remove
         #[arg(num_args = 1..)]
         name: Option<Vec<String>>,
+
+        /// Use pip as a backup if litv fails.
+        #[arg(short, long)]
+        backup: bool,
     },
 
     /// Creates a virtual environment for the project.

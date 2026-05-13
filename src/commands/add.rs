@@ -2,6 +2,7 @@ use std::env;
 use std::error::Error;
 use std::path::PathBuf;
 use std::fs;
+use std::process::Command;
 use reqwest::blocking;
 use colored::Colorize;
 use zip::ZipArchive;
@@ -42,7 +43,7 @@ struct Project {
     dependencies: Option<Vec<String>>,
 }
 
-pub fn run(packages: &[String], install: bool) -> Result<(), Box<dyn Error>> {
+pub fn run(packages: &[String], install: bool, backup: bool) -> Result<(), Box<dyn Error>> {
     let current_dir = env::current_dir()?;
     let pyproject_path = current_dir.join("pyproject.toml");
     let venv_dir = current_dir.join(".venv");
@@ -51,6 +52,10 @@ pub fn run(packages: &[String], install: bool) -> Result<(), Box<dyn Error>> {
         create_venv(&venv_dir)?;
     }
 
+    if backup {
+        pip_install(&packages)?;
+    }
+    
     let site_packages = get_site_packages(&venv_dir)?;
 
     if packages.is_empty() {
@@ -371,5 +376,19 @@ fn extract_tarball(tarball_path: &PathBuf, dest_dir: &PathBuf) -> Result<(), Box
         entry.unpack(&outpath)?;
     }
     
+    Ok(())
+}
+
+fn pip_install(packages: &[String]) -> Result<(), Box<dyn Error>> {
+    if cfg!(target_os = "windows") {
+        let mut cmd = Command::new(".venv\\Scripts\\pip.exe");
+        cmd.args(packages);
+        let _ = cmd.status();
+    } else {
+        let mut cmd = Command::new(".venv/bin/python");
+        cmd.arg("install").args(packages);
+        let _ = cmd.status();
+    }
+
     Ok(())
 }
