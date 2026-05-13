@@ -28,19 +28,20 @@ pub fn run(packages: &[String], backup: bool) -> Result<(), Box<dyn Error>> {
         println!("{}", "Please specify packages to remove".red());
         return Ok(());
     }
-
-    if backup {
-        pip_remove(&packages)?;
-    }
     
     let mut dependencies = read_dependencies(&pyproject_path)?;
-
+    
     for package in packages {
         remove_from_pyproject(package, &mut dependencies, &pyproject_path)?;
         
         if venv_dir.exists() {
             let site_packages = get_site_packages(&venv_dir)?;
-            remove_package_from_venv(&site_packages, package)?;
+
+            if backup {
+                pip_remove(package)?;
+            } else {
+                remove_package_from_venv(&site_packages, package)?;
+            }
         }
     }
 
@@ -107,13 +108,19 @@ fn get_site_packages(venv_dir: &PathBuf) -> Result<PathBuf, Box<dyn Error>> {
     { Ok(venv_dir.join("lib").join("python3.12").join("site-packages")) }
 }
 
-fn pip_remove(packages: &[String]) -> Result<(), Box<dyn Error>> {
-    for package in packages {
-        Command::new("pip")
-            .arg("uninstall")
-            .arg("-y")
-            .arg(package)
-            .status()?;
+fn pip_remove(package: &str) -> Result<(), Box<dyn Error>> {
+    let pip_path;
+    if cfg!(target_os = "windows") {
+        pip_path = ".venv\\Scripts\\pip.exe".to_string();
+    } else {
+        pip_path = ".venv/bin/pip".to_string();
     }
+
+    Command::new(pip_path)
+        .arg("uninstall")
+        .arg("-y")
+        .arg(package)
+        .status()?;
+    
     Ok(())
 }

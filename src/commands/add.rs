@@ -51,10 +51,6 @@ pub fn run(packages: &[String], install: bool, backup: bool) -> Result<(), Box<d
     if !venv_dir.exists() {
         create_venv(&venv_dir)?;
     }
-
-    if backup {
-        pip_install(&packages)?;
-    }
     
     let site_packages = get_site_packages(&venv_dir)?;
 
@@ -82,7 +78,11 @@ pub fn run(packages: &[String], install: bool, backup: bool) -> Result<(), Box<d
         let (version, package_deps) = install_package_and_get_deps(&site_packages, package)?;
         
         if install {
-            install_extras_and_deps(&site_packages, package, &package_deps, &mut dependencies)?;
+            if backup {
+                pip_install(package)?;
+            } else {
+                install_extras_and_deps(&site_packages, package, &package_deps, &mut dependencies)?;
+            }
         }
 
         add_dependency(&mut dependencies, package, &version);
@@ -379,16 +379,18 @@ fn extract_tarball(tarball_path: &PathBuf, dest_dir: &PathBuf) -> Result<(), Box
     Ok(())
 }
 
-fn pip_install(packages: &[String]) -> Result<(), Box<dyn Error>> {
+fn pip_install(package: &str) -> Result<(), Box<dyn Error>> {
+    let pip_path;
     if cfg!(target_os = "windows") {
-        let mut cmd = Command::new(".venv\\Scripts\\pip.exe");
-        cmd.args(packages);
-        let _ = cmd.status();
+        pip_path = ".venv\\Scripts\\pip.exe".to_string();
     } else {
-        let mut cmd = Command::new(".venv/bin/python");
-        cmd.arg("install").args(packages);
-        let _ = cmd.status();
+        pip_path = ".venv/bin/pip".to_string();
     }
+    
+    Command::new(pip_path)
+        .arg("install")
+        .arg(package)
+        .status()?;
 
     Ok(())
 }

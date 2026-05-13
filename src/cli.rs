@@ -41,7 +41,7 @@ pub enum Command {
         #[arg(short, long)]
         install: bool,
 
-        /// Use pip as a backup if litv fails.
+        /// Use pip as a backup if litv fails or not suited for you.
         #[arg(short, long)]
         backup: bool,
     },
@@ -52,7 +52,7 @@ pub enum Command {
         #[arg(num_args = 1..)]
         name: Option<Vec<String>>,
 
-        /// Use pip as a backup if litv fails.
+        /// Use pip as a backup if litv fails or not suited for you.
         #[arg(short, long)]
         backup: bool,
     },
