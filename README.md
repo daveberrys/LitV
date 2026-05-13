@@ -41,9 +41,14 @@ Since this is a CLI tool, you run it from the terminal. Here are the arguments:
             - `<package>` is the name of the package to add to `pyproject.toml`.
         - `litv add <package> -i`
             - `-i` is a optional flag that will install the package and then place the package you installed to `pyproject.toml`.
+        - `litv add <package> -b`
+            - `-b` is a optional flag that will use `pip` to install the package and then place the package you installed to `pyproject.toml`.
 - `litv remove <package>`
     - `<package>` is the name of the package to remove from `pyproject.toml`.
     - If `<package>` is empty, the user will be prompted to add a argument.
+    - Extras:
+        - `litv remove <package> -b`
+            - `-b` is a optional flag that will use `pip` to remove the package and then remove the package you installed to `pyproject.toml`.
 - `litv venv`
     - Creates a new virtual environment.
     - Extras:
