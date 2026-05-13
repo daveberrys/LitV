@@ -109,18 +109,24 @@ fn get_site_packages(venv_dir: &PathBuf) -> Result<PathBuf, Box<dyn Error>> {
 }
 
 fn pip_remove(package: &str) -> Result<(), Box<dyn Error>> {
-    let pip_path;
+    let python_path;
     if cfg!(target_os = "windows") {
-        pip_path = ".venv\\Scripts\\pip.exe".to_string();
+        python_path = ".venv\\Scripts\\python.exe".to_string();
     } else {
-        pip_path = ".venv/bin/pip".to_string();
+        python_path = ".venv/bin/python".to_string();
     }
 
-    Command::new(pip_path)
+    let status = Command::new(python_path)
+        .arg("-m")
+        .arg("pip")
         .arg("uninstall")
         .arg("-y")
         .arg(package)
         .status()?;
+    
+    if !status.success() {
+        return Err(format!("pip uninstall failed for {} with status: {}", package, status).into());
+    }
     
     Ok(())
 }

@@ -7,8 +7,10 @@ A simplified pip-like CLI tool written in Rust. Manages Python dependencies, vir
 ```bash
 cargo run -- add <package>         # Add package to pyproject.toml (no install)
 cargo run -- add <package> -i      # Add package AND install immediately
+cargo run -- add <package> -b      # Add package with pip instead of LitV
 cargo run -- add                   # Install all packages from pyproject.toml
 cargo run -- remove <package>      # Remove package from pyproject.toml and venv
+cargo run -- remove <package> -b   # Remove package with pip instead of LitV
 cargo run -- init                  # Initialize project structure
 cargo run -- run                   # Run src/main.py using venv Python
 cargo run -- run <script>          # Run specified script using venv Python

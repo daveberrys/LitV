@@ -28,21 +28,38 @@ pub fn run(version: &str) -> Result<(), Box<dyn Error>> {
     
     std::fs::create_dir(&venv_path)?;
     
-    let lib_src = python_dir.join("Lib");
+    // let lib_src = python_dir.join("Lib");
     let venv_lib = venv_path.join("Lib");
     let scripts_src = python_dir.join("Scripts");
     let venv_scripts = venv_path.join("Scripts");
     
-    println!("{}", "Creating junction for Lib...".bright_black());
-    if let Err(_) = run_junction(&venv_lib, &lib_src) {
-        println!("{} Falling back to copy", "Junction failed:".yellow());
-        fallback_copy(&venv_lib, &lib_src)?;
-    }
+    println!("{}", "Setting up Lib...".bright_black());
+    std::fs::create_dir_all(&venv_lib)?;
+    // if let Ok(entries) = std::fs::read_dir(&lib_src) {
+    //     for entry in entries.flatten() {
+    //         let name = entry.file_name();
+    //         if name == "site-packages" { continue; }
+    //         if entry.path().is_dir() {
+    //             let _ = run_junction(&venv_lib.join(&name), &entry.path());
+    //         } else {
+    //             let _ = std::fs::copy(entry.path(), venv_lib.join(&name));
+    //         }
+    //     }
+    // }
+    std::fs::create_dir_all(venv_lib.join("site-packages"))?;
     
-    println!("{}", "Creating junction for Scripts...".bright_black());
-    if let Err(_) = run_junction(&venv_scripts, &scripts_src) {
-        println!("{} Falling back to copy", "Junction failed:".yellow());
-        fallback_copy(&venv_scripts, &scripts_src)?;
+    println!("{}", "Setting up Scripts...".bright_black());
+    std::fs::create_dir_all(&venv_scripts)?;
+    if let Ok(entries) = std::fs::read_dir(&scripts_src) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            if name == "python.exe" || name == "pythonw.exe" { continue; }
+            if entry.path().is_dir() {
+                let _ = run_junction(&venv_scripts.join(&name), &entry.path());
+            } else {
+                let _ = std::fs::copy(entry.path(), venv_scripts.join(&name));
+            }
+        }
     }
     
     println!("{}", "Creating pyvenv.cfg...".bright_black());
@@ -52,10 +69,15 @@ pub fn run(version: &str) -> Result<(), Box<dyn Error>> {
     );
     std::fs::write(venv_path.join("pyvenv.cfg"), cfg_content)?;
     
-    let venv_python = venv_path.join("Scripts").join("python.exe");
+    let venv_python = venv_scripts.join("python.exe");
     if !venv_python.exists() {
         std::fs::copy(python_exe, &venv_python)?;
     }
+
+    println!("{}", "Installing pip...".bright_black());
+    let _ = Command::new(&venv_python)
+        .args(["-m", "ensurepip", "--default-pip"])
+        .status();
     
     println!("{}", "Virtual environment created!".green().bold());
     println!("{}", format!("    at: {}", venv_path.display()).white());
@@ -106,23 +128,23 @@ fn run_junction(target: &std::path::Path, source: &std::path::Path) -> Result<()
     Ok(())
 }
 
-fn fallback_copy(target: &std::path::Path, source: &std::path::Path) -> Result<(), Box<dyn Error>> {
-    if source.is_dir() {
-        std::fs::create_dir_all(target)?;
-        for entry in std::fs::read_dir(source)? {
-            let entry = entry?;
-            let dest = target.join(entry.file_name());
-            if entry.path().is_dir() {
-                fallback_copy(&dest, &entry.path())?;
-            } else {
-                std::fs::copy(entry.path(), dest)?;
-            }
-        }
-    } else {
-        std::fs::copy(source, target)?;
-    }
-    Ok(())
-}
+// fn fallback_copy(target: &std::path::Path, source: &std::path::Path) -> Result<(), Box<dyn Error>> {
+//     if source.is_dir() {
+//         std::fs::create_dir_all(target)?;
+//         for entry in std::fs::read_dir(source)? {
+//             let entry = entry?;
+//             let dest = target.join(entry.file_name());
+//             if entry.path().is_dir() {
+//                 fallback_copy(&dest, &entry.path())?;
+//             } else {
+//                 std::fs::copy(entry.path(), dest)?;
+//             }
+//         }
+//     } else {
+//         std::fs::copy(source, target)?;
+//     }
+//     Ok(())
+// }
 
 fn check_os() -> Result<(), Box<dyn Error>> {
     #[cfg(not(target_os = "windows"))] {

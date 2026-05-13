@@ -63,11 +63,23 @@ pub fn run(packages: &[String], install: bool, backup: bool) -> Result<(), Box<d
             );
             return Ok(());
         }
-        println!("{} {}",
-            "Installing dependencies from".bright_black(),
-            "pyproject.toml...".bright_black().bold()
-        );
-        install_from_pyproject(&pyproject_path, &site_packages)?;
+
+        if backup {
+            println!("{} {}",
+                "Installing dependencies from".bright_black(),
+                "pyproject.toml using pip...".bright_black().bold()
+            );
+            for dep in &deps {
+                pip_install(dep)?;
+            }
+        } else {
+            println!("{} {}",
+                "Installing dependencies from".bright_black(),
+                "pyproject.toml...".bright_black().bold()
+            );
+            install_from_pyproject(&pyproject_path, &site_packages)?;
+        }
+
         println!("{}", "Installation complete!".green().bold());
         return Ok(());
     }
@@ -75,14 +87,19 @@ pub fn run(packages: &[String], install: bool, backup: bool) -> Result<(), Box<d
     let mut dependencies = read_dependencies(&pyproject_path)?;
 
     for package in packages {
-        let (version, package_deps) = install_package_and_get_deps(&site_packages, package)?;
+        let (version, package_deps) = if backup {
+            let (_, v, deps) = get_package_info(package)?;
+            pip_install(package)?;
+            (v, deps)
+        } else if install {
+            install_package_and_get_deps(&site_packages, package)?
+        } else {
+            let (_, v, deps) = get_package_info(package)?;
+            (v, deps)
+        };
         
-        if install {
-            if backup {
-                pip_install(package)?;
-            } else {
-                install_extras_and_deps(&site_packages, package, &package_deps, &mut dependencies)?;
-            }
+        if install && !backup {
+            install_extras_and_deps(&site_packages, package, &package_deps, &mut dependencies)?;
         }
 
         add_dependency(&mut dependencies, package, &version);
@@ -100,7 +117,7 @@ pub fn run(packages: &[String], install: bool, backup: bool) -> Result<(), Box<d
 
     write_pyproject(&pyproject_path, &dependencies)?;
 
-    if install {
+    if install || backup {
         println!("{}", "Installation complete!".green().bold());
     } else {
         println!("{} {} {}",
@@ -380,17 +397,24 @@ fn extract_tarball(tarball_path: &PathBuf, dest_dir: &PathBuf) -> Result<(), Box
 }
 
 fn pip_install(package: &str) -> Result<(), Box<dyn Error>> {
-    let pip_path;
+    let python_path;
     if cfg!(target_os = "windows") {
-        pip_path = ".venv\\Scripts\\pip.exe".to_string();
+        python_path = ".venv\\Scripts\\python.exe".to_string();
     } else {
-        pip_path = ".venv/bin/pip".to_string();
+        python_path = ".venv/bin/python".to_string();
     }
     
-    Command::new(pip_path)
+    let status = Command::new(python_path)
+        .arg("-m")
+        .arg("pip")
         .arg("install")
+        .arg("--no-user")
         .arg(package)
         .status()?;
+
+    if !status.success() {
+        return Err(format!("pip install failed for {} with status: {}", package, status).into());
+    }
 
     Ok(())
 }
