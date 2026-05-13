@@ -28,24 +28,12 @@ pub fn run(version: &str) -> Result<(), Box<dyn Error>> {
     
     std::fs::create_dir(&venv_path)?;
     
-    // let lib_src = python_dir.join("Lib");
     let venv_lib = venv_path.join("Lib");
     let scripts_src = python_dir.join("Scripts");
     let venv_scripts = venv_path.join("Scripts");
     
     println!("{}", "Setting up Lib...".bright_black());
     std::fs::create_dir_all(&venv_lib)?;
-    // if let Ok(entries) = std::fs::read_dir(&lib_src) {
-    //     for entry in entries.flatten() {
-    //         let name = entry.file_name();
-    //         if name == "site-packages" { continue; }
-    //         if entry.path().is_dir() {
-    //             let _ = run_junction(&venv_lib.join(&name), &entry.path());
-    //         } else {
-    //             let _ = std::fs::copy(entry.path(), venv_lib.join(&name));
-    //         }
-    //     }
-    // }
     std::fs::create_dir_all(venv_lib.join("site-packages"))?;
     
     println!("{}", "Setting up Scripts...".bright_black());
@@ -54,10 +42,11 @@ pub fn run(version: &str) -> Result<(), Box<dyn Error>> {
         for entry in entries.flatten() {
             let name = entry.file_name();
             if name == "python.exe" || name == "pythonw.exe" { continue; }
+            let dest = venv_scripts.join(&name);
             if entry.path().is_dir() {
-                let _ = run_junction(&venv_scripts.join(&name), &entry.path());
+                copy_dir(&entry.path(), &dest)?;
             } else {
-                let _ = std::fs::copy(entry.path(), venv_scripts.join(&name));
+                let _ = std::fs::copy(entry.path(), &dest);
             }
         }
     }
@@ -113,38 +102,19 @@ fn run_py_command(args: &[&str]) -> Result<String, Box<dyn Error>> {
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
-fn run_junction(target: &std::path::Path, source: &std::path::Path) -> Result<(), Box<dyn Error>> {
-    let target_str = target.to_string_lossy().replace('/', "\\");
-    let source_str = source.to_string_lossy().replace('/', "\\");
-    
-    let output = Command::new("cmd")
-        .args(["/C", &format!("mklink /J \"{}\" \"{}\"", target_str, source_str)])
-        .output()?;
-    
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Junction error: {}", stderr).into());
+fn copy_dir(src: &std::path::Path, dst: &std::path::Path) -> Result<(), Box<dyn Error>> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let dest_path = dst.join(entry.file_name());
+        if entry.path().is_dir() {
+            copy_dir(&entry.path(), &dest_path)?;
+        } else {
+            std::fs::copy(entry.path(), &dest_path)?;
+        }
     }
     Ok(())
 }
-
-// fn fallback_copy(target: &std::path::Path, source: &std::path::Path) -> Result<(), Box<dyn Error>> {
-//     if source.is_dir() {
-//         std::fs::create_dir_all(target)?;
-//         for entry in std::fs::read_dir(source)? {
-//             let entry = entry?;
-//             let dest = target.join(entry.file_name());
-//             if entry.path().is_dir() {
-//                 fallback_copy(&dest, &entry.path())?;
-//             } else {
-//                 std::fs::copy(entry.path(), dest)?;
-//             }
-//         }
-//     } else {
-//         std::fs::copy(source, target)?;
-//     }
-//     Ok(())
-// }
 
 fn check_os() -> Result<(), Box<dyn Error>> {
     #[cfg(not(target_os = "windows"))] {
