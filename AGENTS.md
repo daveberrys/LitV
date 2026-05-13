@@ -43,7 +43,7 @@ cargo run -- venv <version>        # Create virtual environment with specific Py
 - `urls` - Vec<PackageUrl> (wheel download URLs)
 
 ### PyProjectToml
-- `litv` - Project section with name, version, description, python_version, dependencies
+- `litv` - Project section with name, version, description, dependencies
 
 ## Implementation Details
 

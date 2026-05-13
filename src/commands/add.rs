@@ -157,8 +157,7 @@ fn install_from_pyproject(pyproject_path: &PathBuf, site_packages: &PathBuf) -> 
     }
     let deps = read_dependencies(pyproject_path)?;
     for dep in deps {
-        let name = dep.split("==").next().unwrap_or(&dep);
-        install_package(site_packages, name)?;
+        install_package(site_packages, &dep)?;
     }
     Ok(())
 }
@@ -189,7 +188,7 @@ fn install_package_and_get_deps(site_packages: &PathBuf, package: &str) -> Resul
 
     let _ = fs::remove_dir_all(&temp_dir);
 
-    println!("{} {}={}", "+".green(), package.white(), version.white());
+    println!("{} {}", "+".green(), package.white());
     Ok((version, dependencies))
 }
 
@@ -199,11 +198,12 @@ fn install_package(site_packages: &PathBuf, package: &str) -> Result<String, Box
 }
 
 fn add_dependency(dependencies: &mut Vec<String>, package: &str, version: &str) {
-    let new_dep = format!("{}=={}", package, version);
-    let package_with_eq = format!("{}==", package);
+    let name = package.split("==").next().unwrap_or(package);
+    let new_dep = format!("{}=={}", name, version);
+    let package_with_eq = format!("{}==", name);
     
     for dep in dependencies.iter() {
-        if dep.starts_with(&package_with_eq) || dep == package {
+        if dep.starts_with(&package_with_eq) || dep.starts_with(name) {
             return;
         }
     }
@@ -271,8 +271,28 @@ fn get_package_all_deps(package: &str) -> Result<Vec<String>, Box<dyn Error>> {
 }
 
 fn get_package_info(package: &str) -> Result<(String, String, Vec<String>), Box<dyn Error>> {
-    let url = format!("https://pypi.org/pypi/{}/json", package);
-    let response = blocking::get(&url)?.json::<PyPiResponse>()?;
+    let (name, requested_version) = if let Some((n, v)) = package.split_once("==") {
+        (n, Some(v.to_string()))
+    } else {
+        (package, None)
+    };
+    
+    let url = if let Some(ref ver) = requested_version {
+        format!("https://pypi.org/pypi/{}/{}/json", name, ver)
+    } else {
+        format!("https://pypi.org/pypi/{}/json", name)
+    };
+    
+    let response = match blocking::get(&url) {
+        Ok(resp) if resp.status().is_success() => resp.json::<PyPiResponse>()?,
+        _ if requested_version.is_some() => {
+            let fallback_url = format!("https://pypi.org/pypi/{}/json", name);
+            let fallback_resp = blocking::get(&fallback_url)?.json::<PyPiResponse>()?;
+            eprintln!("Warning: version {} not found for {}, using latest: {}", requested_version.as_ref().unwrap(), name, fallback_resp.info.version);
+            fallback_resp
+        }
+        _ => return Err(format!("Failed to fetch package info for {}", package).into()),
+    };
     
     let download_url = response.urls.iter()
         .find(|u| u.url.ends_with(".whl"))
@@ -280,9 +300,10 @@ fn get_package_info(package: &str) -> Result<(String, String, Vec<String>), Box<
         .map(|u| u.url.clone())
         .ok_or_else(|| format!("No wheel or tar.gz file found for {}", package))?;
     
+    let version = response.info.version.clone();
     let deps = response.info.requires_dist.unwrap_or_default();
     let dep_names: Vec<String> = deps.iter().map(|d| d.split(';').next().unwrap_or(d).trim().to_string()).collect();
-    Ok((download_url, response.info.version.clone(), dep_names))
+    Ok((download_url, version, dep_names))
 }
 
 fn get_package_version(package: &str) -> Result<String, Box<dyn Error>> {
