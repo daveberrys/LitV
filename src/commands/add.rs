@@ -138,8 +138,21 @@ fn create_venv(_venv_path: &PathBuf) -> Result<(), Box<dyn Error>> {
 fn get_site_packages(venv_dir: &PathBuf) -> Result<PathBuf, Box<dyn Error>> {
     #[cfg(target_os = "windows")]
     { Ok(venv_dir.join("Lib").join("site-packages")) }
-    #[cfg(not(target_os = "windows"))]
-    { Ok(venv_dir.join("lib").join("python3.12").join("site-packages")) }
+    #[cfg(not(target_os = "windows"))] {
+        let lib_dir = venv_dir.join("lib");
+        for entry in fs::read_dir(lib_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.starts_with("python") {
+                        return Ok(path.join("site-packages"));
+                    }
+                }
+            }
+        }
+        Err("Could not find python directory in .venv/lib".into())
+    }
 }
 
 fn read_dependencies(pyproject_path: &PathBuf) -> Result<Vec<String>, Box<dyn Error>> {
