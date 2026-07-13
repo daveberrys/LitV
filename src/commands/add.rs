@@ -26,13 +26,13 @@ pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
         }
 
         run_pip(["install", "-r", REQUIREMENTS_FILE])?;
-        println!("{}", "Installation complete!".green().bold());
+        for package in packages { println!("{} {}", "+".green().bold(), package); }
         return Ok(());
     }
 
     run_pip(std::iter::once("install").chain(packages.iter().map(String::as_str)))?;
     add_to_requirements(Path::new(REQUIREMENTS_FILE), packages)?;
-    println!("{}", "Installation complete!".green().bold());
+    for package in packages { println!("{} {}", "+".green().bold(), package); }
     Ok(())
 }
 
@@ -68,6 +68,6 @@ fn add_to_requirements(path: &Path, packages: &[String]) -> Result<(), Box<dyn E
     }
 
     fs::write(path, requirements)?;
-    println!("{} {}", "Updated".bright_black(), REQUIREMENTS_FILE.bold());
+    println!("{} {}", "Updated".bright_black(), REQUIREMENTS_FILE.bright_black().bold());
     Ok(())
 }

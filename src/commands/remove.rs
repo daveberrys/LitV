@@ -26,7 +26,7 @@ pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
     }
 
     remove_from_requirements(Path::new(REQUIREMENTS_FILE), packages)?;
-    println!("{} Removed packages: {}", "-".red(), packages.join(", "));
+    for package in packages { println!("{} {}", "-".red().bold(), package); }
     Ok(())
 }
 
@@ -55,7 +55,7 @@ fn remove_from_requirements(path: &Path, packages: &[String]) -> Result<(), Box<
         format!("{filtered}\n")
     };
     fs::write(path, output)?;
-    println!("{} {}", "Updated".bright_black(), REQUIREMENTS_FILE.bold());
+    println!("{} {}", "Updated".bright_black(), REQUIREMENTS_FILE.bright_black().bold());
     Ok(())
 }
 

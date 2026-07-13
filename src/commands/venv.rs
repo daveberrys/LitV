@@ -11,7 +11,7 @@ const VENV_DIR: &str = ".venv";
 pub fn run() -> Result<(), Box<dyn Error>> {
     println!("{}", "Creating virtual environment...".bright_black());
     let (launcher, version) = find_python_launcher()?;
-    println!("{} {} ({})", "Using".bright_black(), launcher, version);
+    println!("{}", format!("Using {launcher} ({version})").bright_black());
 
     let status = Command::new(launcher)
         .args(["-m", "venv", VENV_DIR])
@@ -59,7 +59,10 @@ fn find_python_launcher() -> Result<(&'static str, String), Box<dyn Error>> {
 /// pip executables.
 pub fn ensure() -> Result<(), Box<dyn Error>> {
     if !Path::new(VENV_DIR).is_dir() || !python_path().is_file() {
-        println!("{}", "No usable .venv found; creating one...".yellow());
+        println!(
+            "{}",
+            "No usable .venv found; creating one...".bright_black()
+        );
         run()?;
     }
     Ok(())
