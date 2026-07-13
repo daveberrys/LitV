@@ -35,14 +35,25 @@ fn remove_from_requirements(path: &Path, packages: &[String]) -> Result<(), Box<
         return Ok(());
     }
 
-    let requested: Vec<String> = packages.iter().map(|package| normalized_name(package)).collect();
+    let requested: Vec<String> = packages
+        .iter()
+        .map(|package| normalized_name(package))
+        .collect();
     let content = fs::read_to_string(path)?;
     let filtered = content
         .lines()
-        .filter(|line| !requested.iter().any(|package| normalized_name(line) == *package))
+        .filter(|line| {
+            !requested
+                .iter()
+                .any(|package| normalized_name(line) == *package)
+        })
         .collect::<Vec<_>>()
         .join("\n");
-    let output = if filtered.is_empty() { filtered } else { format!("{filtered}\n") };
+    let output = if filtered.is_empty() {
+        filtered
+    } else {
+        format!("{filtered}\n")
+    };
     fs::write(path, output)?;
     println!("{} {}", "Updated".bright_black(), REQUIREMENTS_FILE.bold());
     Ok(())
@@ -51,7 +62,12 @@ fn remove_from_requirements(path: &Path, packages: &[String]) -> Result<(), Box<
 fn normalized_name(requirement: &str) -> String {
     let name = requirement
         .trim()
-        .split(|character: char| matches!(character, '[' | '=' | '!' | '<' | '>' | '~' | ';' | ' ' | '\t'))
+        .split(|character: char| {
+            matches!(
+                character,
+                '[' | '=' | '!' | '<' | '>' | '~' | ';' | ' ' | '\t'
+            )
+        })
         .next()
         .unwrap_or_default();
     name.to_ascii_lowercase().replace(['_', '.'], "-")

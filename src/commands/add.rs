@@ -17,7 +17,11 @@ pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
     if packages.is_empty() {
         let requirements = Path::new(REQUIREMENTS_FILE);
         if !requirements.exists() {
-            println!("{} {}", "No requirements.txt found. Add packages with:".yellow(), "litv add <package>".green().bold());
+            println!(
+                "{} {}",
+                "No requirements.txt found. Add packages with:".yellow(),
+                "litv add <package>".green().bold()
+            );
             return Ok(());
         }
 

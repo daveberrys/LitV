@@ -16,7 +16,11 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     if !status.success() {
         return Err(format!("python -m venv {VENV_DIR} failed with status: {status}").into());
     }
-    println!("{} {}", "Virtual environment ready at".green().bold(), VENV_DIR);
+    println!(
+        "{} {}",
+        "Virtual environment ready at".green().bold(),
+        VENV_DIR
+    );
     Ok(())
 }
 

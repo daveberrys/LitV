@@ -2,10 +2,10 @@ mod cli;
 mod commands;
 
 use cli::{Args, Command};
-use commands::init::run as init_run;
-use commands::run::run as run_run;
 use commands::add::run as add_run;
+use commands::init::run as init_run;
 use commands::remove::run as remove_run;
+use commands::run::run as run_run;
 use commands::venv::run as venv_run;
 
 use colored::Colorize;
@@ -45,7 +45,7 @@ fn main() {
                 eprintln!("Venv failed: {}", e.to_string().red());
             }
         }
-        
+
         None => {
             println!("Verbose: {}", args.verbose);
         }

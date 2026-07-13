@@ -1,7 +1,7 @@
-use std::process::Command;
-use std::error::Error;
-use colored::Colorize;
 use super::venv;
+use colored::Colorize;
+use std::error::Error;
+use std::process::Command;
 
 pub fn run(path: &str, args: Vec<String>) -> Result<(), Box<dyn Error>> {
     venv::ensure()?;
@@ -11,13 +11,13 @@ pub fn run(path: &str, args: Vec<String>) -> Result<(), Box<dyn Error>> {
     } else {
         start_app(Some(path), args)?;
     }
-    
+
     Ok(())
 }
 
 fn start_app(path: Option<&str>, args: Vec<String>) -> Result<(), Box<dyn Error>> {
     println!("{}", "Starting application...".bright_black());
-    
+
     let python_path;
     match path {
         None => {
@@ -31,7 +31,7 @@ fn start_app(path: Option<&str>, args: Vec<String>) -> Result<(), Box<dyn Error>
             python_path = v;
         }
     }
-    
+
     let status = Command::new(venv::python_path())
         .arg(python_path)
         .args(args)
