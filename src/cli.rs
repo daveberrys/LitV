@@ -23,11 +23,7 @@ pub enum Command {
     /// Run the LitV application
     Run {
         /// Path to the project to run
-        #[arg(
-            default_value = "src/main.py",
-            allow_hyphen_values = true,
-            trailing_var_arg = true
-        )]
+        #[arg(default_value = "src/main.py", allow_hyphen_values = true)]
         path: String,
 
         /// Arguments to pass to the Python script
