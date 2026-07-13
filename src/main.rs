@@ -26,22 +26,22 @@ fn main() {
             }
         }
 
-        Some(Command::Add { name, install, backup }) => {
+        Some(Command::Add { name }) => {
             let packages = name.unwrap_or_default();
-            if let Err(e) = add_run(&packages, install, backup) {
+            if let Err(e) = add_run(&packages) {
                 eprintln!("Add failed: {}", e.to_string().red());
             }
         }
 
-        Some(Command::Remove { name, backup }) => {
+        Some(Command::Remove { name }) => {
             let packages = name.unwrap_or_default();
-            if let Err(e) = remove_run(&packages, backup) {
+            if let Err(e) = remove_run(&packages) {
                 eprintln!("Remove failed: {}", e.to_string().red());
             }
         }
 
-        Some(Command::Venv { version }) => {
-            if let Err(e) = venv_run(&version) {
+        Some(Command::Venv) => {
+            if let Err(e) = venv_run() {
                 eprintln!("Venv failed: {}", e.to_string().red());
             }
         }

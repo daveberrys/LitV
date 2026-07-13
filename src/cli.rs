@@ -31,38 +31,22 @@ pub enum Command {
         args: Vec<String>,
     },
 
-    /// Adds a new dependency to the project and cache.
+    /// Installs packages with pip and records them in requirements.txt.
     Add {
-        /// Name of the dependency to add (omit to install all from pyproject.toml)
+        /// Packages to install (omit to install requirements.txt)
         #[arg(num_args = 1..)]
         name: Option<Vec<String>>,
-
-        /// Install the package immediately
-        #[arg(short, long)]
-        install: bool,
-
-        /// Use pip as a backup if litv fails or not suited for you.
-        #[arg(short, long)]
-        backup: bool,
     },
 
-    /// Removes a dependency from the project and cache.
+    /// Uninstalls packages with pip and removes them from requirements.txt.
     Remove {
-        /// Name of the dependency to remove
-        #[arg(num_args = 1..)]
+        /// Packages to remove
+        #[arg(required = true, num_args = 1..)]
         name: Option<Vec<String>>,
-
-        /// Use pip as a backup if litv fails or not suited for you.
-        #[arg(short, long)]
-        backup: bool,
     },
 
-    /// Creates a virtual environment for the project.
-    Venv {
-        /// Version of Python to use for the virtual environment
-        #[arg(default_value = "-3.14", allow_hyphen_values = true)]
-        version: String,
-    },
+    /// Creates a virtual environment with `python -m venv .venv`.
+    Venv,
 }
 
 impl Args {
