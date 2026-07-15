@@ -1,26 +1,23 @@
-use std::process::Command;
-use std::path::Path;
-use std::error::Error;
-use colored::Colorize;
 use super::venv;
+use colored::Colorize;
+use std::error::Error;
+use std::process::Command;
 
 pub fn run(path: &str, args: Vec<String>) -> Result<(), Box<dyn Error>> {
-    if !Path::new(".venv").is_dir() {
-        venv::run("")?;
-    }
+    venv::ensure()?;
 
     if path.is_empty() {
         start_app(None, args)?;
     } else {
         start_app(Some(path), args)?;
     }
-    
+
     Ok(())
 }
 
 fn start_app(path: Option<&str>, args: Vec<String>) -> Result<(), Box<dyn Error>> {
     println!("{}", "Starting application...".bright_black());
-    
+
     let python_path;
     match path {
         None => {
@@ -34,17 +31,13 @@ fn start_app(path: Option<&str>, args: Vec<String>) -> Result<(), Box<dyn Error>
             python_path = v;
         }
     }
-    
-    if cfg!(target_os = "windows") {
-        let mut cmd = Command::new(".venv\\Scripts\\python.exe");
-        cmd.arg(python_path);
-        for arg in args { cmd.arg(arg); }
-        cmd.status()?;
-    } else {
-        let mut cmd = Command::new(".venv/bin/python");
-        cmd.arg(python_path);
-        for arg in args { cmd.arg(arg); }
-        cmd.status()?;
+
+    let status = Command::new(venv::python_path())
+        .arg(python_path)
+        .args(args)
+        .status()?;
+    if !status.success() {
+        return Err(format!("Python script failed with status: {status}").into());
     }
 
     Ok(())

@@ -1,126 +1,77 @@
-use std::process::Command;
-use colored::Colorize;
 use std::error::Error;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
-pub fn run(version: &str) -> Result<(), Box<dyn Error>> {
-    check_os()?;
+use colored::Colorize;
 
-    println!("{}", "Creating a LitV Virtual Environment...".bright_black());
-    
-    let python_path = if version.is_empty() {
-        detect_latest_python()?
-    } else {
-        run_py_command(&[version, "-c", "import sys; print(sys.executable)"])?
-    };
-    
-    let python_exe = python_path.trim();
-    let python_path_buf = PathBuf::from(python_exe);
-    let python_dir = python_path_buf.parent()
-        .ok_or_else(|| "Invalid Python path".to_string())?;
-    
-    let venv_path = std::env::current_dir()?.join(".venv");
-    
-    if venv_path.exists() {
-        println!("{}", "Removing existing .venv...".yellow());
-        std::fs::remove_dir_all(&venv_path)?;
+const VENV_DIR: &str = ".venv";
+
+/// Creates or refreshes the project virtual environment using Python's standard
+/// library implementation.
+pub fn run() -> Result<(), Box<dyn Error>> {
+    println!("{}", "Creating virtual environment...".bright_black());
+    let (launcher, version) = find_python_launcher()?;
+    println!("{}", format!("Using {launcher} ({version})").bright_black());
+
+    let status = Command::new(launcher)
+        .args(["-m", "venv", VENV_DIR])
+        .status()?;
+    if !status.success() {
+        return Err(format!("{launcher} -m venv {VENV_DIR} failed with status: {status}").into());
     }
-    
-    std::fs::create_dir(&venv_path)?;
-    
-    let venv_lib = venv_path.join("Lib");
-    let scripts_src = python_dir.join("Scripts");
-    let venv_scripts = venv_path.join("Scripts");
-    
-    println!("{}", "Setting up Lib...".bright_black());
-    std::fs::create_dir_all(&venv_lib)?;
-    std::fs::create_dir_all(venv_lib.join("site-packages"))?;
-    
-    println!("{}", "Setting up Scripts...".bright_black());
-    std::fs::create_dir_all(&venv_scripts)?;
-    if let Ok(entries) = std::fs::read_dir(&scripts_src) {
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            if name == "python.exe" || name == "pythonw.exe" { continue; }
-            let dest = venv_scripts.join(&name);
-            if entry.path().is_dir() {
-                copy_dir(&entry.path(), &dest)?;
-            } else {
-                let _ = std::fs::copy(entry.path(), &dest);
-            }
-        }
-    }
-    
-    println!("{}", "Creating pyvenv.cfg...".bright_black());
-    let cfg_content = format!(
-        "home = {}\ninclude-system-site-packages = false\nversion = 3.14.0\n",
-        python_exe.replace('\\', "\\\\")
+
+    println!(
+        "{} {}",
+        "Virtual environment ready at".green().bold(),
+        VENV_DIR
     );
-    std::fs::write(venv_path.join("pyvenv.cfg"), cfg_content)?;
-    
-    let venv_python = venv_scripts.join("python.exe");
-    if !venv_python.exists() {
-        std::fs::copy(python_exe, &venv_python)?;
-    }
-
-    println!("{}", "Installing pip...".bright_black());
-    let _ = Command::new(&venv_python)
-        .args(["-m", "ensurepip", "--default-pip"])
-        .status();
-    
-    println!("{}", "Virtual environment created!".green().bold());
-    println!("{}", format!("    at: {}", venv_path.display()).white());
-    
     Ok(())
 }
 
-fn detect_latest_python() -> Result<String, Box<dyn Error>> {
-    let output = Command::new("py").args(["-0"]).output()?;
-    if !output.status.success() {
-        return Err("No Python found".into());
-    }
-    
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let lines: Vec<&str> = stdout.lines().collect();
-    
-    if lines.is_empty() || lines.len() < 2 {
-        return Err("No Python versions found".into());
-    }
-    
-    let latest = lines[1].trim();
-    let version = latest.split(' ').next().unwrap_or(latest);
-    
-    run_py_command(&[version, "-c", "import sys; print(sys.executable)"])
-}
+/// Finds the first available Python launcher in LitV's cross-platform order.
+/// A launcher is accepted only when `--version` succeeds and produces output.
+fn find_python_launcher() -> Result<(&'static str, String), Box<dyn Error>> {
+    for launcher in ["py", "python", "python3"] {
+        let Ok(output) = Command::new(launcher).arg("--version").output() else {
+            continue;
+        };
 
-fn run_py_command(args: &[&str]) -> Result<String, Box<dyn Error>> {
-    let output = Command::new("py").args(args).output()?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("py command failed: {}", stderr).into());
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
-}
+        if !output.status.success() {
+            continue;
+        }
 
-fn copy_dir(src: &std::path::Path, dst: &std::path::Path) -> Result<(), Box<dyn Error>> {
-    std::fs::create_dir_all(dst)?;
-    for entry in std::fs::read_dir(src)? {
-        let entry = entry?;
-        let dest_path = dst.join(entry.file_name());
-        if entry.path().is_dir() {
-            copy_dir(&entry.path(), &dest_path)?;
+        let version = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+        let version = if version.is_empty() {
+            String::from_utf8_lossy(&output.stderr).trim().to_owned()
         } else {
-            std::fs::copy(entry.path(), &dest_path)?;
+            version
+        };
+
+        if !version.is_empty() {
+            return Ok((launcher, version));
         }
     }
+
+    Err("Could not find a usable Python launcher. Checked `py`, `python`, and `python3` with `--version`.".into())
+}
+
+/// Ensures the project has a virtual environment before invoking its Python or
+/// pip executables.
+pub fn ensure() -> Result<(), Box<dyn Error>> {
+    if !Path::new(VENV_DIR).is_dir() || !python_path().is_file() {
+        println!(
+            "{}",
+            "No usable .venv found; creating one...".bright_black()
+        );
+        run()?;
+    }
     Ok(())
 }
 
-fn check_os() -> Result<(), Box<dyn Error>> {
-    #[cfg(not(target_os = "windows"))] {
-        println!("{}", "Sorry to say this, but your current os (which may be unix) is not supported!".red());
-        println!("{}", "As of right now, only Windows is supported.".red());
-        println!("{}", "If you wish to use a virtual environment, run `python -m venv venv`.".red());
+pub fn python_path() -> PathBuf {
+    if cfg!(windows) {
+        PathBuf::from(VENV_DIR).join("Scripts").join("python.exe")
+    } else {
+        PathBuf::from(VENV_DIR).join("bin").join("python")
     }
-    Ok(())
 }

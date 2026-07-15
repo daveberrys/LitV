@@ -1,16 +1,13 @@
 # litv - Python Package Manager CLI (Rust)
 
-A simplified pip-like CLI tool written in Rust. Manages Python dependencies, virtual environments, and package installation from PyPI.
+A simplified pip-like CLI tool written in Rust. It manages Python dependencies with `pip`, `requirements.txt`, and virtual environments created by Python.
 
 ## Commands
 
 ```bash
-cargo run -- add <package>         # Add package to pyproject.toml (no install)
-cargo run -- add <package> -i      # Add package AND install immediately
-cargo run -- add <package> -b      # Add package with pip instead of LitV
-cargo run -- add                   # Install all packages from pyproject.toml
-cargo run -- remove <package>      # Remove package from pyproject.toml and venv
-cargo run -- remove <package> -b   # Remove package with pip instead of LitV
+cargo run -- add <package> [...]   # Install with pip and add to requirements.txt
+cargo run -- add                   # Install all packages from requirements.txt
+cargo run -- remove <package> [...] # Uninstall with pip and remove requirements
 cargo run -- init                  # Initialize project structure
 cargo run -- run                   # Run src/main.py using venv Python
 cargo run -- run <script>          # Run specified script using venv Python
@@ -24,69 +21,38 @@ cargo run -- venv <version>        # Create virtual environment with specific Py
 - `src/cli.rs` - CLI argument definitions using clap
 - `src/main.rs` - Entry point, parses args and calls commands
 - `src/commands/mod.rs` - Re-exports all command modules
-- `src/commands/add.rs` - Package fetching, installation, and extras handling
-- `src/commands/remove.rs` - Package removal from pyproject.toml and venv
+- `src/commands/add.rs` - pip installation and requirements.txt updates
+- `src/commands/remove.rs` - pip uninstallation and requirements.txt updates
 - `src/commands/init.rs` - Project structure initialization
 - `src/commands/run.rs` - Python script execution using venv
-- `src/commands/venv.rs` - Virtual environment creation (Windows junctions)
+- `src/commands/venv.rs` - Virtual environment creation with `python -m venv .venv`
 
 ## Dependencies (Cargo.toml)
 
-- `reqwest` - HTTP client for PyPI API calls
-- `zip` - Extract wheel files
-- `toml` - Parse/write pyproject.toml
 - `clap` - CLI argument parsing
 - `colored` - Terminal colors and styling
-
-## Data Structures
-
-### PyPiResponse (from PyPI API)
-- `info` - PackageInfo (name, version, requires_dist)
-- `urls` - Vec<PackageUrl> (wheel download URLs)
-
-### PyProjectToml
-- `litv` - Project section with name, version, description, dependencies
 
 ## Implementation Details
 
 ### Virtual Environment
 - Creates `.venv` in project root
-- Windows: Uses junction links to Python's Lib/Scripts directories for efficiency
-- Falls back to copying if junctions fail
-- Platform path: `.venv/Lib/site-packages` (Windows), `.venv/lib/python3.x/site-packages` (Unix)
+- Uses `python -m venv .venv`
+- `add`, `remove`, and `run` create it if it is missing
 
-### pyproject.toml initialize format
-```toml
-[litv]
-name = "{}"
-version = "0.1.0"
-description = "An initialized LitV project"
-dependencies = []"
-```
-
-### Add workflow (without -i)
-1. Validates package name
-2. Adds package + version to pyproject.toml
-3. Does NOT install - user runs `litv add` to install
-
-### Add workflow (with -i)
-1. Validates package name
-2. Fetches package from PyPI JSON API
-3. Checks for extras (e.g., `package[extra]`) and installs those deps too
-4. Fetches `requires_dist` for both main package and extras
-5. Installs main package AND all dependencies to venv site-packages
-6. Adds everything to pyproject.toml
-7. Prints "Installation complete!"
+### Add workflow
+1. Ensures `.venv` exists.
+2. Runs `.venv`'s `python -m pip install` with every supplied package argument.
+3. Writes the direct supplied requirements to `requirements.txt` after pip succeeds.
+4. With no package arguments, runs `pip install -r requirements.txt`.
 
 ### Remove workflow
-1. Reads pyproject.toml dependencies
-2. Filters out the package (case-insensitive)
-3. Writes updated dependencies back to pyproject.toml
-4. Deletes package folder and `.dist-info` from venv site-packages
+1. Ensures `.venv` exists.
+2. Runs `.venv`'s `python -m pip uninstall -y` with every supplied package argument.
+3. Removes matching direct requirements case-insensitively from `requirements.txt`.
 
 ### Init workflow
 1. Creates directory structure (src/)
-2. Creates README.md, .gitignore, pyproject.toml, src/main.py
+2. Creates README.md, .gitignore, requirements.txt, src/main.py
 3. Uses template content for each file
 
 ### Run workflow
@@ -94,19 +60,14 @@ dependencies = []"
 2. Executes venv Python with src/main.py
 3. Shows stdout/stderr from the script
 
-### Venv workflow (Windows only)
-1. Detects latest Python version using `py -0`
-2. Creates .venv directory
-3. Creates junction links to Python's Lib and Scripts (fast) or copies (fallback)
-4. Writes pyvenv.cfg configuration
-5. Copies python.exe to .venv/Scripts/
+### Venv workflow
+1. Runs `python -m venv .venv`.
 
 ## Build & Run
 
 ```bash
 cargo build             # Debug build
-cargo run add flask     # Add flask to pyproject.toml (no install)
-cargo run add flask -i  # Add and install flask immediately
-cargo run add           # Install all deps from pyproject.toml
+cargo run add flask     # Install flask and add it to requirements.txt
+cargo run add           # Install all dependencies from requirements.txt
 cargo run remove flask  # Remove flask from project and venv
 ```

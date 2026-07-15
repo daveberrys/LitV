@@ -1,145 +1,74 @@
-use std::env;
 use std::error::Error;
-use std::path::PathBuf;
 use std::fs;
+use std::path::Path;
 use std::process::Command;
+
 use colored::Colorize;
 
-#[derive(serde::Deserialize, serde::Serialize)]
-struct PyProjectToml {
-    project: Option<Project>,
-}
+use super::venv;
 
-#[derive(serde::Deserialize, serde::Serialize)]
-struct Project {
-    name: Option<String>,
-    version: Option<String>,
-    description: Option<String>,
-    python_version: Option<String>,
-    dependencies: Option<Vec<String>>,
-}
+const REQUIREMENTS_FILE: &str = "requirements.txt";
 
-pub fn run(packages: &[String], backup: bool) -> Result<(), Box<dyn Error>> {
-    let current_dir = env::current_dir()?;
-    let pyproject_path = current_dir.join("pyproject.toml");
-    let venv_dir = current_dir.join(".venv");
-
+/// Uninstalls all requested packages in one pip invocation, then removes their
+/// direct requirement entries from requirements.txt.
+pub fn run(packages: &[String]) -> Result<(), Box<dyn Error>> {
     if packages.is_empty() {
-        println!("{}", "Please specify packages to remove".red());
+        return Err("Please specify at least one package to remove".into());
+    }
+
+    venv::ensure()?;
+    let status = Command::new(venv::python_path())
+        .args(["-m", "pip", "uninstall", "-y"])
+        .args(packages)
+        .status()?;
+    if !status.success() {
+        return Err(format!("pip uninstall failed with status: {status}").into());
+    }
+
+    remove_from_requirements(Path::new(REQUIREMENTS_FILE), packages)?;
+    for package in packages { println!("{} {}", "-".red().bold(), package); }
+    Ok(())
+}
+
+fn remove_from_requirements(path: &Path, packages: &[String]) -> Result<(), Box<dyn Error>> {
+    if !path.exists() {
         return Ok(());
     }
-    
-    let mut dependencies = read_dependencies(&pyproject_path)?;
-    
-    for package in packages {
-        remove_from_pyproject(package, &mut dependencies, &pyproject_path)?;
-        
-        if venv_dir.exists() {
-            let site_packages = get_site_packages(&venv_dir)?;
 
-            if backup {
-                pip_remove(package)?;
-            } else {
-                remove_package_from_venv(&site_packages, package)?;
-            }
-        }
-    }
-
-    println!("{} Removed packages: {:?}", "-".red(), packages);
-    Ok(())
-}
-
-fn read_dependencies(pyproject_path: &PathBuf) -> Result<Vec<String>, Box<dyn Error>> {
-    if !pyproject_path.exists() {
-        return Ok(vec![]);
-    }
-    let content = fs::read_to_string(pyproject_path)?;
-    let pyproject: PyProjectToml = toml::from_str(&content).unwrap_or(PyProjectToml { project: None });
-    Ok(pyproject.project.and_then(|p| p.dependencies).unwrap_or_default())
-}
-
-fn remove_from_pyproject(package: &str, dependencies: &mut Vec<String>, path: &PathBuf) -> Result<(), Box<dyn Error>> {
-    let package_lower = package.to_lowercase();
-    
-    dependencies.retain(|dep| {
-        let dep_name = dep.split("==").next().unwrap_or(dep).to_lowercase();
-        dep_name != package_lower
-    });
-
-    if path.exists() {
-        let existing = fs::read_to_string(path)?;
-        let mut pyproject: PyProjectToml = toml::from_str(&existing).unwrap_or(PyProjectToml { project: None });
-        
-        if let Some(ref mut project) = pyproject.project {
-            project.dependencies = Some(dependencies.to_vec());
-        }
-        
-        let content = toml::to_string_pretty(&pyproject).unwrap_or(existing);
-        fs::write(path, content)?;
-    }
-
-    Ok(())
-}
-
-fn remove_package_from_venv(site_packages: &PathBuf, package: &str) -> Result<(), Box<dyn Error>> {
-    let package_folder = site_packages.join(package);
-
-    if package_folder.exists() {
-        fs::remove_dir_all(&package_folder)?;
-        println!("{} Removed from venv: {}", "-".red(), package.white());
-    }
-
-    for entry in fs::read_dir(&site_packages)? {
-        let entry = entry?;
-        let name = entry.file_name().to_string_lossy().to_lowercase();
-        if name.starts_with(&package.to_lowercase()) && name.ends_with(".dist-info") {
-            fs::remove_dir_all(entry.path())?;
-            println!("{} Removed dist-info: {}", "-".red(), name.white());
-        }
-    }
-
-    Ok(())
-}
-
-fn get_site_packages(venv_dir: &PathBuf) -> Result<PathBuf, Box<dyn Error>> {
-    #[cfg(target_os = "windows")]
-    { Ok(venv_dir.join("Lib").join("site-packages")) }
-    #[cfg(not(target_os = "windows"))] {
-        let lib_dir = venv_dir.join("lib");
-        for entry in fs::read_dir(lib_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if name.starts_with("python") {
-                        return Ok(path.join("site-packages"));
-                    }
-                }
-            }
-        }
-        Err("Could not find python directory in .venv/lib".into())
-    }
-}
-
-fn pip_remove(package: &str) -> Result<(), Box<dyn Error>> {
-    let python_path;
-    if cfg!(target_os = "windows") {
-        python_path = ".venv\\Scripts\\python.exe".to_string();
+    let requested: Vec<String> = packages
+        .iter()
+        .map(|package| normalized_name(package))
+        .collect();
+    let content = fs::read_to_string(path)?;
+    let filtered = content
+        .lines()
+        .filter(|line| {
+            !requested
+                .iter()
+                .any(|package| normalized_name(line) == *package)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let output = if filtered.is_empty() {
+        filtered
     } else {
-        python_path = ".venv/bin/python".to_string();
-    }
-
-    let status = Command::new(python_path)
-        .arg("-m")
-        .arg("pip")
-        .arg("uninstall")
-        .arg("-y")
-        .arg(package)
-        .status()?;
-    
-    if !status.success() {
-        return Err(format!("pip uninstall failed for {} with status: {}", package, status).into());
-    }
-    
+        format!("{filtered}\n")
+    };
+    fs::write(path, output)?;
+    println!("{} {}", "Updated".bright_black(), REQUIREMENTS_FILE.bright_black().bold());
     Ok(())
+}
+
+fn normalized_name(requirement: &str) -> String {
+    let name = requirement
+        .trim()
+        .split(|character: char| {
+            matches!(
+                character,
+                '[' | '=' | '!' | '<' | '>' | '~' | ';' | ' ' | '\t'
+            )
+        })
+        .next()
+        .unwrap_or_default();
+    name.to_ascii_lowercase().replace(['_', '.'], "-")
 }
