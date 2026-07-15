@@ -47,7 +47,13 @@ fn main() {
         }
 
         None => {
-            println!("Verbose: {}", args.verbose);
+            println!("{}{} {}", "Lit".bright_yellow().bold(), "V".bright_black().bold(), "available command list".white());
+            println!("{} {}", "litv init".cyan(), "to initialize a LitV project".white());
+            println!("{} {}", "litv run <pyfile> <args>".cyan(), "to run a Python file with LitV".white());
+            println!("{} {}", "litv add <packages>".cyan(), "to add packages to the virtual environment".white());
+            println!("{} {}", "litv remove <packages>".cyan(), "to remove packages from the virtual environment".white());
+            println!("{} {}", "litv venv".cyan(), "to manage the virtual environment".white());
+            println!("{} {}", "check our github at".white(), "https://github.com/daveberrys/litv".cyan());
         }
     }
 }
